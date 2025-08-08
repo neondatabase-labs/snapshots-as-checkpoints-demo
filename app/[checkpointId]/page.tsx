@@ -7,7 +7,12 @@ import {
   updateCheckpointSnapshot,
 } from "@/lib/checkpoints";
 import CheckpointsTimeline from "@/components/checkpoints-timeline";
-import { fetchContactsByVersion, ContactV1, ContactV2, ContactV3 } from "@/lib/contacts";
+import {
+  fetchContactsByVersion,
+  ContactV1,
+  ContactV2,
+  ContactV3,
+} from "@/lib/contacts";
 import ContactListV1 from "@/components/contact-list-v1";
 import ContactListV2 from "@/components/contact-list-v2";
 import ContactListV3 from "@/components/contact-list-v3";

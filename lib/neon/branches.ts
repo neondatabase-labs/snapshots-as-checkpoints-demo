@@ -9,6 +9,87 @@ export type Branch = {
   parent_id?: string;
 };
 
+type BranchContainer = {
+  id?: string;
+  name?: string;
+  created_at?: string;
+  parent_id?: string;
+  branch?: {
+    id?: string;
+    name?: string;
+    created_at?: string;
+    parent_id?: string;
+  };
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isBranchContainer(value: unknown): value is BranchContainer {
+  if (!isRecord(value)) return false;
+
+  const record = value as Record<string, unknown>;
+
+  const hasValidOptionalString = (key: string) =>
+    record[key] === undefined || typeof record[key] === "string";
+
+  const branch = record["branch"];
+  const branchOk =
+    branch === undefined ||
+    (isRecord(branch) &&
+      ["id", "name", "created_at", "parent_id"].every(
+        (k) => branch[k] === undefined || typeof branch[k] === "string",
+      ));
+
+  return (
+    ["id", "name", "created_at", "parent_id"].every(hasValidOptionalString) &&
+    branchOk
+  );
+}
+
+function extractBranchContainers(input: unknown): BranchContainer[] {
+  if (Array.isArray(input)) {
+    return input.filter(isBranchContainer);
+  }
+
+  if (!isRecord(input)) return [];
+
+  const container = input as Record<string, unknown>;
+  const candidatesKeys = ["branches", "items", "data"] as const;
+  for (const key of candidatesKeys) {
+    const maybe = container[key];
+    if (Array.isArray(maybe)) {
+      return maybe.filter(isBranchContainer);
+    }
+  }
+  return [];
+}
+
+function normalizeBranch(container: BranchContainer): {
+  id?: string;
+  name?: string;
+  created_at?: string;
+  parent_id?: string;
+} {
+  return {
+    id: container.id ?? container.branch?.id,
+    name: container.name ?? container.branch?.name,
+    created_at: container.created_at ?? container.branch?.created_at,
+    parent_id: container.parent_id ?? container.branch?.parent_id,
+  };
+}
+
+function isBranch(value: unknown): value is Branch {
+  if (!isRecord(value)) return false;
+  const v = value as Record<string, unknown>;
+  const idOk = typeof v.id === "string";
+  const optionalStringsOk = ["name", "created_at", "parent_id"].every(
+    (k) => v[k] === undefined || typeof v[k] === "string",
+  );
+  return idOk && optionalStringsOk;
+}
+
 export async function getAllBranches(): Promise<Branch[]> {
   const apiKey = process.env.NEON_API_KEY;
   const projectId = process.env.NEON_PROJECT_ID || process.env.PROJECT_ID;
@@ -30,19 +111,10 @@ export async function getAllBranches(): Promise<Branch[]> {
     throw new Error(`Failed to list branches: ${res.status} ${text}`);
   }
 
-  const json = (await res.json()) as unknown;
-  const items: any[] = Array.isArray(json)
-    ? json
-    : (json as any).branches || (json as any).items || (json as any).data || [];
+  const json: unknown = await res.json();
+  const items: BranchContainer[] = extractBranchContainers(json);
 
-  return items
-    .map((b: any) => ({
-      id: b.id ?? b.branch?.id,
-      name: b.name ?? b.branch?.name,
-      created_at: b.created_at ?? b.branch?.created_at,
-      parent_id: b.parent_id ?? b.branch?.parent_id,
-    }))
-    .filter((b: Branch) => Boolean(b.id));
+  return items.map(normalizeBranch).filter(isBranch);
 }
 
 export async function getProductionBranch(): Promise<Branch | undefined> {
@@ -51,5 +123,3 @@ export async function getProductionBranch(): Promise<Branch | undefined> {
 }
 
 export { getProductionBranch as default };
-
-

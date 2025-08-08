@@ -1,6 +1,7 @@
 "use server";
 
 import invariant from "tiny-invariant";
+import getProductionBranch from "./branches";
 
 type CreateSnapshotOptions = {
   name?: string;
@@ -12,10 +13,11 @@ export async function createSnapshot(
 ): Promise<string> {
   const apiKey = process.env.NEON_API_KEY;
   const projectId = process.env.NEON_PROJECT_ID || process.env.PROJECT_ID;
-  const branchId = process.env.NEON_BRANCH_ID || process.env.BRANCH_ID;
   invariant(apiKey, "NEON_API_KEY is required");
   invariant(projectId, "NEON_PROJECT_ID or PROJECT_ID is required");
-  invariant(branchId, "NEON_BRANCH_ID or BRANCH_ID is required");
+  const prodBranch = await getProductionBranch();
+  invariant(prodBranch?.id, "Production branch not found");
+  const branchId = prodBranch.id;
 
   const timestamp = options.timestamp ?? new Date().toISOString();
 

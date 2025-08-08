@@ -31,8 +31,8 @@ export async function createInitialCheckpoint(): Promise<Checkpoint> {
     INSERT INTO checkpoints (prompt, snapshot_id)
     VALUES (${prompt}, ${snapshotId})
     RETURNING *
-  `) as any[];
-  return inserted[0] as Checkpoint;
+  `) as unknown as Checkpoint[];
+  return inserted[0];
 }
 
 export async function createNextCheckpoint(
@@ -48,16 +48,16 @@ export async function createNextCheckpoint(
     INSERT INTO checkpoints (prompt, snapshot_id)
     VALUES (${step.prompt}, ${snapshotId})
     RETURNING *
-  `) as any[];
+  `) as unknown as Checkpoint[];
   await sql`UPDATE checkpoints SET next_checkpoint_id = ${inserted[0].id} WHERE id = ${currentCheckpointId}`;
-  return inserted[0] as Checkpoint;
+  return inserted[0];
 }
 
 export async function listCheckpoints(): Promise<Checkpoint[]> {
   const sql = getMetaSql();
   const rows =
-    (await sql`SELECT * FROM checkpoints ORDER BY created_at ASC`) as any[];
-  return rows as Checkpoint[];
+    (await sql`SELECT * FROM checkpoints ORDER BY created_at ASC`) as unknown as Checkpoint[];
+  return rows;
 }
 
 export async function resetCheckpoints(): Promise<void> {
@@ -76,9 +76,9 @@ export async function updateCheckpointSnapshot(
     SET snapshot_id = ${snapshotId}
     WHERE id = ${checkpointId}
     RETURNING *
-  `) as any[];
+  `) as unknown as Checkpoint[];
   if (!updated || updated.length === 0) {
     throw new Error("Checkpoint not found");
   }
-  return updated[0] as Checkpoint;
+  return updated[0];
 }

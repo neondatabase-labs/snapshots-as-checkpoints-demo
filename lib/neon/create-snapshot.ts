@@ -41,7 +41,7 @@ export async function createSnapshot(
     throw new Error(`Failed to create snapshot: ${res.status} ${text}`);
   }
 
-  const json = (await res.json()) as { snapshot: { id: string } } | any;
+  const json = (await res.json()) as unknown as { snapshot?: { id?: string } } & { id?: string };
   const snapshotId: string | undefined = json?.snapshot?.id ?? json?.id;
   invariant(snapshotId, "Snapshot ID missing in response");
   return snapshotId;

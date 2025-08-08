@@ -40,20 +40,22 @@ export async function updateDatabaseV3() {
 
 export async function fetchContactsV1(): Promise<ContactV1[]> {
   const sql = getSql();
-  return (await sql`SELECT id, name, email FROM contacts ORDER BY name ASC`) as any;
+  return (await sql`SELECT id, name, email FROM contacts ORDER BY name ASC`) as unknown as ContactV1[];
 }
 
 export async function fetchContactsV2(): Promise<ContactV2[]> {
   const sql = getSql();
-  return (await sql`SELECT id, name, email, role, company FROM contacts ORDER BY name ASC`) as any;
+  return (await sql`SELECT id, name, email, role, company FROM contacts ORDER BY name ASC`) as unknown as ContactV2[];
 }
 
 export async function fetchContactsV3(): Promise<ContactV3[]> {
   const sql = getSql();
-  return (await sql`SELECT id, name, email, role, company, tags FROM contacts ORDER BY name ASC`) as any;
+  return (await sql`SELECT id, name, email, role, company, tags FROM contacts ORDER BY name ASC`) as unknown as ContactV3[];
 }
 
-export async function fetchContactsByVersion(version: ComponentVersion) {
+export async function fetchContactsByVersion(
+  version: ComponentVersion,
+): Promise<ContactV1[] | ContactV2[] | ContactV3[]> {
   if (version === "v1") return fetchContactsV1();
   if (version === "v2") return fetchContactsV2();
   return fetchContactsV3();

@@ -7,7 +7,7 @@ import {
   updateCheckpointSnapshot,
 } from "@/lib/checkpoints";
 import CheckpointsTimeline from "@/components/checkpoints-timeline";
-import { fetchContactsByVersion } from "@/lib/contacts";
+import { fetchContactsByVersion, ContactV1, ContactV2, ContactV3 } from "@/lib/contacts";
 import ContactListV1 from "@/components/contact-list-v1";
 import ContactListV2 from "@/components/contact-list-v2";
 import ContactListV3 from "@/components/contact-list-v3";
@@ -124,13 +124,13 @@ export default async function CheckpointPage({
               result:
             </div>
             {demoStep.version === "v1" && (
-              <ContactListV1 contacts={contacts as any} />
+              <ContactListV1 contacts={contacts as ContactV1[]} />
             )}
             {demoStep.version === "v2" && (
-              <ContactListV2 contacts={contacts as any} />
+              <ContactListV2 contacts={contacts as ContactV2[]} />
             )}
             {demoStep.version === "v3" && (
-              <ContactListV3 contacts={contacts as any} />
+              <ContactListV3 contacts={contacts as ContactV3[]} />
             )}
           </div>
 

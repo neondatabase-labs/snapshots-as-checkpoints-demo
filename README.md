@@ -1,75 +1,114 @@
-![Vercel with Neon](./assets/home.png)
+![Snapshots as Checkpoints](./assets/home.png)
 
--> View demo: [vercel-marketplace-neon.vercel.app](https://vercel-marketplace-neon.vercel.app/)
+### Live demo
 
-# Neon Postgres
+- https://snapshots-as-checkpoints-demo.vercel.app/
 
-A minimal template for building full-stack React applications using Next.js, Vercel, and Neon.
+### What is this?
 
-## Getting Started
+Snapshots as Checkpoints is a demo that showcases how to build a “checkpoint” abstraction for agent/codegen workflows using Neon’s snapshot and restore APIs. Each agent prompt produces a new checkpoint. You can jump back and forth between checkpoints to instantly revert schema and data.
 
-Click the "Deploy" button to clone this repo, create a new Vercel project, setup the Neon integration, and provision a new Neon database:
+This demo uses two Postgres databases:
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fneondatabase-labs%2Fvercel-marketplace-neon%2Ftree%2Fmain&project-name=my-vercel-neon-app&repository-name=my-vercel-neon-app&products=[{%22type%22:%22integration%22,%22integrationSlug%22:%22neon%22,%22productSlug%22:%22neon%22,%22protocol%22:%22storage%22}])
+- app database: the contacts app schema/data that evolves across prompts
+- meta database: a `checkpoints` table that records the timeline of checkpoints
 
-Once the process is complete, you can clone the newly created GitHub repository and start making changes locally.
+Key docs in this repo:
 
-## Local Setup
+- BRANCHING_DOCS.md: creating, listing, and deleting branches with the Neon API
+- SNAPSHOT_DOCS.md: creating and restoring snapshots (one-step and multi-step)
+- OPERATIONS_DOCS.md: Neon control-plane operations and polling semantics
 
-### Installation
+## How it works
 
-Install the dependencies:
+Minimal checkpoint implementation using snapshots:
+
+1. v1 prompt: “Create a contact list app … name + email” → app + DB created → snapshot s1
+
+2. v2 prompt: “Add role and company” → schema + app updated → snapshot s2
+
+3. v3 prompt: “Add tags” → schema + app updated → snapshot s3
+
+Reverting is restoring a snapshot:
+
+- revert to v1 → restore s1
+- revert to v3 → restore s3
+
+### App flow
+
+- Home page → Start demo: resets both DBs and creates the first checkpoint from v1
+- Checkpoint page `/[checkpointId]`:
+  - Top: timeline of checkpoints with jump actions
+  - Tabs: app | meta db | contacts schema
+    - app: interactive contacts table (v1/v2/v3 components)
+    - meta db: `checkpoints` table from the meta database
+    - contacts schema: columns reported by `information_schema.columns`
+  - Actions: revert (apply snapshot), update snapshot, create/jump to next
+  - Next prompt: shows what the next mutation will do
+
+### Data fetching
+
+Checkpoint page fetches data in parallel with Promise.all:
+
+- contacts for the current version
+- contacts table schema (information_schema)
+- meta `checkpoints` rows
+
+### Applying a snapshot and waiting for operations
+
+- `lib/neon/apply-snapshot.ts` calls Neon’s restore endpoint with `finalize_restore: true` and a `target_branch_id` (your production branch), then collects operation IDs from the response
+- `lib/neon/operations.ts` polls each operation using the operations API until it reaches a terminal status (`finished`, `skipped`, or `cancelled`)
+
+See OPERATIONS_DOCS.md for operation semantics, and SNAPSHOT_DOCS.md for the restore flow.
+
+## Environment variables
+
+Create a `.env` file in the project root with these variables:
+
+```env
+# Contacts app database (the agent-managed app)
+DATABASE_URL=postgres://user:pass@host/db
+
+# Meta database (stores the checkpoints table)
+META_DATABASE_URL=postgres://user:pass@host/db
+
+# Neon API access for snapshot/restore and listing branches
+NEON_API_KEY=your_api_key
+
+# Neon project id (use NEON_PROJECT_ID or PROJECT_ID)
+NEON_PROJECT_ID=your_project_id
+# PROJECT_ID=your_project_id
+```
+
+Notes:
+
+- DATABASE_URL and META_DATABASE_URL must point to two different Neon databases/projects or two databases in the same project, depending on your setup.
+- NEON_API_KEY must have permission to call the Neon API for your project.
+- The app uses the `production` branch as the root branch for snapshots/restores.
+
+## Run locally
 
 ```bash
 npm install
-```
-
-You can use the package manager of your choice. For example, Vercel also supports `bun install` out of the box.
-
-### Development
-
-#### Create a .env file in the project root
-
-```bash
-cp .env.example .env
-```
-
-#### Get your database URL
-
-Obtain the database connection string from the Connection Details widget on the [Neon Dashboard](https://console.neon.tech/).
-
-#### Add the database URL to the .env file
-
-Update the `.env` file with your database connection string:
-
-```txt
-# The connection string has the format `postgres://user:pass@host/db`
-DATABASE_URL=<your-string-here>
-```
-
-#### Start the development server
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 and click “Start demo”. The app will:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- reset the contacts table and the meta checkpoints table
+- run the v1 mutation and create the initial snapshot
+- navigate to the first checkpoint route
 
-## Learn More
+## Files of interest
 
-To learn more about Neon, check out the Neon documentation:
+- app/[checkpointId]/page.tsx: main page, tabs, actions, and parallel fetching
+- lib/contacts.ts: schema mutations, CRUD, and contacts/schema queries
+- lib/checkpoints.ts: meta DB `checkpoints` table and list/create/update
+- lib/neon/branches.ts: resolves the `production` branch id via the Neon API
+- lib/neon/create-snapshot.ts: creates a snapshot on the production branch
+- lib/neon/apply-snapshot.ts: restore + wait for operations to finish
+- lib/neon/operations.ts: polls operation ids until terminal status
 
-- [Neon Documentation](https://neon.tech/docs/introduction) - learn about Neon's features and SDKs.
-- [Neon Discord](https://discord.gg/9kf3G4yUZk) - join the Neon Discord server to ask questions and join the community.
-- [ORM Integrations](https://neon.tech/docs/get-started-with-neon/orms) - find Object-Relational Mappers (ORMs) that work with Neon.
+## Production deployment
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-## Deploy on Vercel
-
-Commit and push your code changes to your GitHub repository to automatically trigger a new deployment.
+Deploy with your platform of choice (e.g., Vercel). Provide the same environment variables in your deployment environment.

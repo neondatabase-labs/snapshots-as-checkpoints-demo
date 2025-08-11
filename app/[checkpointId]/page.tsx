@@ -73,8 +73,11 @@ export default async function CheckpointPage({
     "use server";
     const targetId = formData.get("targetId");
     if (typeof targetId !== "string") return;
-    const [allCheckpoints, prodBranch] = await Promise.all([listCheckpoints(), getProductionBranch()]);
-    if(!prodBranch) throw new Error("Production branch not found");
+    const [allCheckpoints, prodBranch] = await Promise.all([
+      listCheckpoints(),
+      getProductionBranch(),
+    ]);
+    if (!prodBranch) throw new Error("Production branch not found");
     const target = allCheckpoints.find((c) => c.id === targetId);
     if (!target) return;
     await applySnapshot(target.snapshot_id, prodBranch.id);
@@ -93,7 +96,7 @@ export default async function CheckpointPage({
       if (!checkpoints[index + 1]) throw new Error("No next checkpoint");
       nextCheckpoint = checkpoints[index + 1];
       const prodBranch = await getProductionBranch();
-      if(!prodBranch) throw new Error("Production branch not found");
+      if (!prodBranch) throw new Error("Production branch not found");
       await applySnapshot(nextCheckpoint.snapshot_id, prodBranch.id);
     }
     redirect(`/${nextCheckpoint.id}`);

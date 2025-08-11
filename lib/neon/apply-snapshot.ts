@@ -2,7 +2,10 @@
 
 import invariant from "tiny-invariant";
 
-export async function applySnapshot(snapshotId: string, targetBranchId: string): Promise<void> {
+export async function applySnapshot(
+  snapshotId: string,
+  targetBranchId: string,
+): Promise<void> {
   console.log("Applying snapshot", snapshotId);
   const apiKey = process.env.NEON_API_KEY;
   const projectId = process.env.NEON_PROJECT_ID || process.env.PROJECT_ID;
@@ -22,7 +25,7 @@ export async function applySnapshot(snapshotId: string, targetBranchId: string):
       body: JSON.stringify({
         name: `restored_${Date.now()}`,
         finalize_restore: true,
-        target_branch_id: branchId,
+        target_branch_id: targetBranchId,
       }),
       cache: "no-store",
     },

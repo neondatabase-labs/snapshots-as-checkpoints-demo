@@ -1,6 +1,7 @@
 "use server";
 
 import invariant from "tiny-invariant";
+import { waitForOperationsToSettle } from "./operations";
 
 export async function applySnapshot(
   snapshotId: string,
@@ -36,5 +37,23 @@ export async function applySnapshot(
     throw new Error(
       `Failed to apply snapshot ${snapshotId}: ${res.status} ${text}`,
     );
+  }
+
+  const json = (await res.json()) as unknown as {
+    operations?: Array<{ id?: string; status?: string; action?: string }>;
+  };
+  const operationIds = (json.operations ?? [])
+    .map((op) => op.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+  if (operationIds.length > 0) {
+    console.log("Waiting for operations to settle", operationIds);
+    const results = await waitForOperationsToSettle(operationIds, {
+      onUpdate: ({ operationId, status }) =>
+        console.log(`Operation ${operationId} -> ${status}`),
+    });
+    console.log("Operations settled", results);
+  } else {
+    console.log("No operations returned from restore response");
   }
 }

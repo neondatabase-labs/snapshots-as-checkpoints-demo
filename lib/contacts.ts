@@ -11,6 +11,13 @@ export type ContactV2 = ContactV1 & {
 };
 export type ContactV3 = ContactV2 & { tags: string[] | null };
 
+export type ContactsTableColumn = {
+  column_name: string;
+  data_type: string;
+  is_nullable: "YES" | "NO";
+  column_default: string | null;
+};
+
 export async function resetContacts() {
   const sql = getSql();
   await sql`DROP TABLE IF EXISTS contacts`;
@@ -59,6 +66,21 @@ export async function fetchContactsByVersion(
   if (version === "v1") return fetchContactsV1();
   if (version === "v2") return fetchContactsV2();
   return fetchContactsV3();
+}
+
+export async function fetchContactsSchema(): Promise<ContactsTableColumn[]> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT
+      column_name,
+      data_type,
+      is_nullable,
+      column_default
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'contacts'
+    ORDER BY ordinal_position
+  `;
+  return rows as unknown as ContactsTableColumn[];
 }
 
 // Server Actions: Create / Update / Delete

@@ -1,5 +1,3 @@
-"use server";
-
 import invariant from "tiny-invariant";
 
 export type OperationStatus =

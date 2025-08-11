@@ -21,6 +21,7 @@ import { ModeToggle } from "@/components/theme-toggle";
 import { applySnapshot } from "@/lib/neon/apply-snapshot";
 import { Prompt } from "@/components/prompt";
 import { SubmitButton } from "@/components/submit-button";
+import getProductionBranch from "@/lib/neon/branches";
 
 export default async function CheckpointPage({
   params,
@@ -72,10 +73,11 @@ export default async function CheckpointPage({
     "use server";
     const targetId = formData.get("targetId");
     if (typeof targetId !== "string") return;
-    const allCheckpoints = await listCheckpoints();
+    const [allCheckpoints, prodBranch] = await Promise.all([listCheckpoints(), getProductionBranch()]);
+    if(!prodBranch) throw new Error("Production branch not found");
     const target = allCheckpoints.find((c) => c.id === targetId);
     if (!target) return;
-    await applySnapshot(target.snapshot_id);
+    await applySnapshot(target.snapshot_id, prodBranch.id);
     redirect(`/${target.id}`);
   }
 
@@ -90,7 +92,9 @@ export default async function CheckpointPage({
     } else {
       if (!checkpoints[index + 1]) throw new Error("No next checkpoint");
       nextCheckpoint = checkpoints[index + 1];
-      await applySnapshot(nextCheckpoint.snapshot_id);
+      const prodBranch = await getProductionBranch();
+      if(!prodBranch) throw new Error("Production branch not found");
+      await applySnapshot(nextCheckpoint.snapshot_id, prodBranch.id);
     }
     redirect(`/${nextCheckpoint.id}`);
   }

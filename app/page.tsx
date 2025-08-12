@@ -17,7 +17,7 @@ const DATA = {
     "Neon Snapshots: instant database checkpoints for your AI agent. Navigate between schema/data states with one click. This demo auto-creates and reuses snapshots as you move forward and back.",
   link: {
     text: "View on GitHub",
-    href: "https://github.com/neondatabase-labs/vercel-marketplace-neon",
+    href: "https://github.com/neondatabase-labs/snapshots-as-checkpoints-demo",
   },
   footerLinks: [
     {

@@ -42,6 +42,11 @@ export async function applySnapshot(
   const json = (await res.json()) as unknown as {
     operations?: Array<{ id?: string; status?: string; action?: string }>;
   };
+  // All three operations:
+  // - timeline_unarchive
+  // - create_branch
+  // - suspend_compute
+  // need to be settled before the snapshot is fully restored.
   const operationIds = (json.operations ?? [])
     .map((op) => op.id)
     .filter((id): id is string => typeof id === "string" && id.length > 0);

@@ -17,7 +17,7 @@ Key docs in this repo:
 
 - [BRANCHING_DOCS.md](BRANCHING_DOCS.md): creating, listing, and deleting branches with the Neon API
 - [SNAPSHOT_DOCS.md](SNAPSHOT_DOCS.md): creating and restoring snapshots (one-step and multi-step)
-- [OPERATIONS_DOCS.md](SNAPSHOT_DOCS.md): Neon control-plane operations and polling semantics
+- [OPERATIONS_DOCS.md](OPERATIONS_DOCS.md): Neon control-plane operations and polling semantics
 
 ## How it works
 

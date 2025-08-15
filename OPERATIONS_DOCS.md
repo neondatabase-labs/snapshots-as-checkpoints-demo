@@ -27,13 +27,9 @@ An operation is an action performed by the Neon Control Plane on a Neon object o
 
 You can view system operations via the Neon Console, [Neon CLI](/docs/reference/neon-cli), or [Neon API](https://api-docs.neon.tech/reference/getting-started-with-neon-api).
 
-<Tabs labels={["Neon Console", "CLI", "API"]}>
-
-<TabItem>
+### Console
 
 You can view system operations via the **Monitoring** page in the Neon Console.
-
-![System operations](/docs/changelog/operations_monitoring.png)
 
 Operation details include:
 
@@ -46,9 +42,7 @@ Operation details include:
 
 Possible **Status** values are `OK`, `Scheduling`, `In progress`, and `Error`.
 
-</TabItem>
-
-<TabItem>
+### CLI
 
 To view operation using the Neon CLI:
 
@@ -58,9 +52,7 @@ neon operations list --project-id <project_id>
 
 See [Neon CLI commands — operations](/docs/reference/cli-operations).
 
-</TabItem>
-
-<TabItem>
+### API
 
 To list operations with the Neon API:
 
@@ -71,9 +63,6 @@ curl 'https://console.neon.tech/api/v2/projects/autumn-disk-484331/operations' \
 ```
 
 See [Get a list of operations](https://api-docs.neon.tech/reference/listprojectoperations).
-</TabItem>
-
-</Tabs>
 
 ## Operations and the Neon API
 
@@ -84,9 +73,7 @@ This section describes how to work with operations using the [Neon API](https://
 - [Get operation](#get-operation): Describes how to retrieve the details for a specific operation by the operation ID.
 - [Poll operation status](#poll-operation-status): Describes how to poll an operation for its status, which may be necessary to avoid failed requests due to in-progress operations when using the Neon API programmatically.
 
-<Admonition type="note">
-Operation names have underscores when view using the API; for example: 
-</Admonition>
+> Operation names have underscores when view using the API; for example:
 
 ### List operations
 

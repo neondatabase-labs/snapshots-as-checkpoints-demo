@@ -15,9 +15,9 @@ This demo uses two Postgres databases:
 
 Key docs in this repo:
 
-- BRANCHING_DOCS.md: creating, listing, and deleting branches with the Neon API
-- SNAPSHOT_DOCS.md: creating and restoring snapshots (one-step and multi-step)
-- OPERATIONS_DOCS.md: Neon control-plane operations and polling semantics
+- [BRANCHING_DOCS.md](BRANCHING_DOCS.md): creating, listing, and deleting branches with the Neon API
+- [SNAPSHOT_DOCS.md](SNAPSHOT_DOCS.md): creating and restoring snapshots (one-step and multi-step)
+- [OPERATIONS_DOCS.md](SNAPSHOT_DOCS.md): Neon control-plane operations and polling semantics
 
 ## How it works
 
@@ -59,7 +59,7 @@ Checkpoint page fetches data in parallel with Promise.all:
 - `lib/neon/apply-snapshot.ts` calls Neon’s restore endpoint with `finalize_restore: true` and a `target_branch_id` (your production branch), then collects operation IDs from the response
 - `lib/neon/operations.ts` polls each operation using the operations API until it reaches a terminal status (`finished`, `skipped`, or `cancelled`)
 
-See OPERATIONS_DOCS.md for operation semantics, and SNAPSHOT_DOCS.md for the restore flow.
+See [OPERATIONS_DOCS.md](OPERATIONS_DOCS.md) for operation semantics, and [SNAPSHOT_DOCS.md](SNAPSHOT_DOCS.md) for the restore flow.
 
 ## Environment variables
 
@@ -82,8 +82,8 @@ NEON_PROJECT_ID=your_project_id
 
 Notes:
 
-- DATABASE_URL and META_DATABASE_URL must point to two different Neon databases/projects or two databases in the same project, depending on your setup.
-- NEON_API_KEY must have permission to call the Neon API for your project.
+- `DATABASE_URL` and `META_DATABASE_URL` must point to two different Neon databases/projects or two databases in the same project, depending on your setup.
+- `NEON_API_KEY` must have permission to call the [Neon API](https://neon.com/api_spec/release/v2.json) for your project.
 - The app uses the `production` branch as the root branch for snapshots/restores.
 
 ## Run locally

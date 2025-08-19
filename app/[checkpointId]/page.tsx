@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  createNextCheckpoint,
-  listCheckpoints,
-  getLatestProjectForUser,
-} from "@/lib/checkpoints";
+import { listCheckpoints, getLatestProjectForUser } from "@/lib/checkpoints";
 import CheckpointsTimeline from "@/components/checkpoints-timeline";
 import {
   fetchContactsByVersion,
@@ -19,10 +15,8 @@ import ContactListV2 from "@/components/contact-list-v2";
 import ContactListV3 from "@/components/contact-list-v3";
 import demo from "@/lib/demo";
 import { ModeToggle } from "@/components/theme-toggle";
-import { applySnapshot } from "@/lib/neon/apply-snapshot";
 import { Prompt } from "@/components/prompt";
 import { SubmitButton } from "@/components/submit-button";
-import getProductionBranch from "@/lib/neon/branches";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -34,7 +28,6 @@ import {
 } from "@/components/ui/table";
 import { listCheckpoints as listMetaCheckpoints } from "@/lib/checkpoints";
 import { stackServerApp } from "@/lib/stack";
-import { PendingOverlay } from "@/components/pending-overlay";
 import { advanceToAction, advanceToNext } from "./actions";
 
 export default async function CheckpointPage({
@@ -89,7 +82,7 @@ export default async function CheckpointPage({
     Promise.all([
       listMetaCheckpoints(project.id),
       demoStep.version === "v0"
-        ? Promise.resolve([] as any)
+        ? Promise.resolve([])
         : fetchContactsSchema(project.databaseUrl),
     ]),
   ]);
@@ -226,7 +219,7 @@ export default async function CheckpointPage({
 
           <div className="mt-16">
             {nextStep && (
-              <Prompt prompt={nextStep.prompt} label="next prompt" />
+              <Prompt prompt={nextStep.prompt || ""} label="next prompt" />
             )}
             <div className="mt-4 flex items-center gap-4">
               {prevCheckpoint && (

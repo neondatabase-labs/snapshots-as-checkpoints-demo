@@ -19,12 +19,9 @@ export type Checkpoint = {
 
 export async function createInitialCheckpoint(
   projectId: string,
-  databaseUrl: string,
 ): Promise<Checkpoint> {
   const db = getMetaDb();
   const step = demo[0];
-  const { prompt, mutation } = step;
-  await mutation(databaseUrl);
   const [project] = await db
     .select()
     .from(projectsTable)
@@ -35,7 +32,7 @@ export async function createInitialCheckpoint(
   });
   const [row] = await db
     .insert(checkpointsTable)
-    .values({ prompt, snapshotId, projectId })
+    .values({ prompt: step.prompt || "", snapshotId, projectId })
     .returning();
   return {
     id: row.id,
@@ -64,13 +61,19 @@ export async function createNextCheckpoint(
     .from(projectsTable)
     .where(eq(projectsTable.id, current.projectId));
   if (!project) throw new Error("Project not found for checkpoint");
-  await step.mutation(project.databaseUrl);
+  if (step.mutation) {
+    await step.mutation(project.databaseUrl);
+  }
   const snapshotId = await createSnapshot(project.neonProjectId, {
     name: step.version,
   });
   const [inserted] = await db
     .insert(checkpointsTable)
-    .values({ prompt: step.prompt, snapshotId, projectId: current.projectId })
+    .values({
+      prompt: step.prompt || "",
+      snapshotId,
+      projectId: current.projectId,
+    })
     .returning();
   await db
     .update(checkpointsTable)

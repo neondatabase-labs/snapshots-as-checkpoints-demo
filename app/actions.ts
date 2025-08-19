@@ -10,9 +10,6 @@ export async function startDemoAction() {
     user.id,
     `snapshot-agent-use-case-demo-${user.id}`,
   );
-  const firstCheckpoint = await createInitialCheckpoint(
-    project.id,
-    project.databaseUrl,
-  );
+  const firstCheckpoint = await createInitialCheckpoint(project.id);
   redirect(`/${firstCheckpoint.id}`);
 }

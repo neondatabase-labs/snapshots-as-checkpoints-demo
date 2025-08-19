@@ -7,9 +7,8 @@ import {
 const demo = [
   {
     id: "cp0",
-    prompt: "",
-    // v0 performs no mutation; represents the empty app DB state
-    mutation: async (_databaseUrl: string) => {},
+    prompt: null,
+    mutation: null,
     version: "v0",
   },
   {

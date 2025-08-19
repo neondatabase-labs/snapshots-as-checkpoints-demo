@@ -3,11 +3,10 @@ import logo from "@/assets/logo.svg";
 import logoDark from "@/assets/logo-dark.svg";
 import Link from "next/link";
 import docs from "@/assets/docs.svg";
-import { startDemoAction } from "./actions";
-import { SubmitButton } from "@/components/submit-button";
 import { stackServerApp } from "@/lib/stack";
 import { ModeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { HomeCreateButton } from "./home-create-button";
 
 const DATA = {
   title: "Neon is Postgres for AI",
@@ -66,24 +65,7 @@ export default async function Home() {
           />
           <div className="mt-8 flex flex-wrap items-center gap-5 md:mt-9 lg:mt-10">
             {user ? (
-              <form action={startDemoAction}>
-                <SubmitButton
-                  pendingText="Starting..."
-                  overlayTitle="Creating app"
-                  overlaySteps={[
-                    {
-                      label: "Cleaning up existing demo project for user",
-                      active: true,
-                    },
-                    { label: "Creating new Neon project" },
-                    { label: "Waiting for Neon main branch to be queryable" },
-                    { label: "Initializing project and first checkpoint" },
-                  ]}
-                  className="rounded-full bg-[#00E599] px-5 py-2.5 font-semibold tracking-tight text-[#0C0D0D] transition-colors duration-200 hover:bg-[#00E5BF] lg:px-7 lg:py-3"
-                >
-                  Create app
-                </SubmitButton>
-              </form>
+              <HomeCreateButton />
             ) : (
               <Button
                 asChild

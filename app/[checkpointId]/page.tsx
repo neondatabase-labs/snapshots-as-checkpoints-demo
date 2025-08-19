@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listCheckpoints, getLatestProjectForUser } from "@/lib/checkpoints";
-import CheckpointsTimeline from "@/components/checkpoints-timeline";
 import {
   fetchContactsByVersion,
   fetchContactsSchema,
@@ -16,7 +15,7 @@ import ContactListV3 from "@/components/contact-list-v3";
 import demo from "@/lib/demo";
 import { ModeToggle } from "@/components/theme-toggle";
 import { Prompt } from "@/components/prompt";
-import { SubmitButton } from "@/components/submit-button";
+import { CheckpointNavigation } from "./checkpoint-navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -28,7 +27,7 @@ import {
 } from "@/components/ui/table";
 import { listCheckpoints as listMetaCheckpoints } from "@/lib/checkpoints";
 import { stackServerApp } from "@/lib/stack";
-import { advanceToAction, advanceToNext } from "./actions";
+import { UpdatedCheckpointsTimeline } from "./updated-checkpoints-timeline";
 
 export default async function CheckpointPage({
   params,
@@ -94,14 +93,13 @@ export default async function CheckpointPage({
       <header className="sticky top-0 z-40 w-full bg-white/80 py-3 backdrop-blur-md dark:bg-black/50">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-5 md:px-8 lg:px-0">
           <div className="w-24" />
-          <CheckpointsTimeline
+          <UpdatedCheckpointsTimeline
             className="mx-auto my-0"
             items={checkpoints.map((c) => ({
               id: c.id,
               snapshot_id: c.snapshot_id,
               isCurrent: c.id === checkpoint.id,
             }))}
-            action={advanceToAction}
           />
           <div className="flex w-24 justify-end">
             <ModeToggle />
@@ -230,81 +228,11 @@ export default async function CheckpointPage({
             {nextStep && (
               <Prompt prompt={nextStep.prompt || ""} label="next prompt" />
             )}
-            <div className="mt-4 flex items-center gap-4">
-              {prevCheckpoint && (
-                <form action={advanceToAction}>
-                  <input
-                    type="hidden"
-                    name="targetId"
-                    value={prevCheckpoint.id}
-                  />
-                  <SubmitButton
-                    pendingText="Reverting..."
-                    overlayTitle="Applying checkpoint to main branch"
-                    overlaySteps={[
-                      {
-                        label: "Apply checkpoint to main branch",
-                        active: true,
-                      },
-                    ]}
-                    variant="outline"
-                    className="rounded-full bg-transparent px-5 py-2.5 font-semibold tracking-tight text-[#0C0D0D] transition-colors duration-200 lg:px-7 lg:py-3 border border-[#E4E5E7] hover:bg-[#E4E5E7]/50 dark:text-white dark:border-[#303236]"
-                  >
-                    Revert back
-                  </SubmitButton>
-                </form>
-              )}
-
-              {nextStep && (
-                <form action={advanceToNext}>
-                  {checkpoint.next_checkpoint_id ? (
-                    <input
-                      type="hidden"
-                      name="targetId"
-                      value={checkpoint.next_checkpoint_id}
-                    />
-                  ) : (
-                    <>
-                      <input
-                        type="hidden"
-                        name="checkpointId"
-                        value={checkpoint.id}
-                      />
-                      <input
-                        type="hidden"
-                        name="nextStepId"
-                        value={nextStep.id}
-                      />
-                    </>
-                  )}
-                  <SubmitButton
-                    pendingText={
-                      checkpoint.next_checkpoint_id
-                        ? "Jumping..."
-                        : "Creating..."
-                    }
-                    overlayTitle={
-                      checkpoint.next_checkpoint_id
-                        ? undefined
-                        : "Creating next checkpoint"
-                    }
-                    overlaySteps={
-                      checkpoint.next_checkpoint_id
-                        ? undefined
-                        : [
-                            { label: "Create snapshot", active: true },
-                            { label: "Create checkpoint in DB" },
-                          ]
-                    }
-                    className="rounded-full bg-[#00E599] px-5 py-2.5 font-semibold tracking-tight text-[#0C0D0D] transition-colors duration-200 hover:bg-[#00E5BF] lg:px-7 lg:py-3"
-                  >
-                    {checkpoint.next_checkpoint_id
-                      ? "Next checkpoint"
-                      : "Create next checkpoint"}
-                  </SubmitButton>
-                </form>
-              )}
-            </div>
+            <CheckpointNavigation
+              prevCheckpointId={prevCheckpoint?.id}
+              nextStep={nextStep}
+              currentCheckpoint={checkpoint}
+            />
           </div>
         </main>
       </div>

@@ -61,8 +61,24 @@ export async function createNextCheckpoint(
     .from(projectsTable)
     .where(eq(projectsTable.id, current.projectId));
   if (!project) throw new Error("Project not found for checkpoint");
-  if (step.mutation) {
-    await step.mutation(project.databaseUrl);
+  // Apply database mutations based on step version
+  const { updateDatabaseV1, updateDatabaseV2, updateDatabaseV3 } = await import(
+    "./contacts"
+  );
+
+  switch (step.version) {
+    case "v0":
+      // No mutation needed for v0
+      break;
+    case "v1":
+      await updateDatabaseV1(project.databaseUrl);
+      break;
+    case "v2":
+      await updateDatabaseV2(project.databaseUrl);
+      break;
+    case "v3":
+      await updateDatabaseV3(project.databaseUrl);
+      break;
   }
   const snapshotId = await createSnapshot(project.neonProjectId, {
     name: step.version,

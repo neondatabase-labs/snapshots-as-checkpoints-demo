@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useFormStatus } from "react-dom";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,10 +9,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type SubmitButtonProps = ButtonProps & {
+type CheckpointButtonProps = ButtonProps & {
   pendingText?: React.ReactNode;
   overlayTitle?: string;
   overlaySteps?: { label: string; active?: boolean }[];
+  pending?: boolean;
+  onClick?: () => void | Promise<void>;
 };
 
 function Spinner() {
@@ -42,20 +43,26 @@ function Spinner() {
   );
 }
 
-export function SubmitButton({
+export function CheckpointButton({
   children,
   pendingText,
   overlayTitle,
   overlaySteps,
+  pending = false,
+  onClick,
   ...props
-}: SubmitButtonProps) {
-  const { pending } = useFormStatus();
+}: CheckpointButtonProps) {
+  const handleClick = async () => {
+    if (pending || !onClick) return;
+    await onClick();
+  };
+
   return (
     <>
       <Button
-        type="submit"
         disabled={pending}
         aria-disabled={pending}
+        onClick={handleClick}
         {...props}
       >
         {pending && <Spinner />}

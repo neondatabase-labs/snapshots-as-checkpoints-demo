@@ -119,7 +119,7 @@ export default async function CheckpointPage({
               <TabsList>
                 <TabsTrigger value="app">app</TabsTrigger>
                 <TabsTrigger value="meta">meta db</TabsTrigger>
-                <TabsTrigger value="schema">contacts schema</TabsTrigger>
+                <TabsTrigger value="schema">app db</TabsTrigger>
               </TabsList>
 
               <TabsContent value="app">
@@ -149,6 +149,9 @@ export default async function CheckpointPage({
               </TabsContent>
 
               <TabsContent value="meta">
+                <div className="mb-2 text-sm font-medium text-[#61646B] dark:text-[#94979E]">
+                  project checkpoints
+                </div>
                 <div className="rounded-lg border border-[#E4E5E7] shadow-sm dark:border-[#303236]">
                   <Table>
                     <TableHeader>
@@ -182,6 +185,12 @@ export default async function CheckpointPage({
               </TabsContent>
 
               <TabsContent value="schema">
+                <div className="mb-2 text-sm font-medium text-[#61646B] dark:text-[#94979E]">
+                  {demoStep.version === "v0" ||
+                  (contactsSchema as ContactsTableColumn[]).length === 0
+                    ? "no tables"
+                    : "contacts table schema"}
+                </div>
                 <div className="rounded-lg border border-[#E4E5E7] shadow-sm dark:border-[#303236]">
                   <Table>
                     <TableHeader>

@@ -3,38 +3,32 @@ import logo from "@/assets/logo.svg";
 import logoDark from "@/assets/logo-dark.svg";
 import Link from "next/link";
 import docs from "@/assets/docs.svg";
-import { createInitialCheckpoint, resetCheckpoints } from "@/lib/checkpoints";
-import { redirect } from "next/navigation";
+import { startDemoAction } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
-import { resetContacts } from "@/lib/contacts";
-import demo from "@/lib/demo";
-import { Prompt } from "@/components/prompt";
+import { stackServerApp } from "@/lib/stack";
 import { ModeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 
 const DATA = {
   title: "Neon is Postgres for AI",
   description:
     "Neon Snapshots: instant database checkpoints for your AI agent. Navigate between schema/data states with one click. This demo auto-creates and reuses snapshots as you move forward and back.",
-  link: {
-    text: "View on GitHub",
-    href: "https://github.com/neondatabase-labs/snapshots-as-checkpoints-demo",
-  },
   footerLinks: [
     {
       text: "Snapshot Docs",
       href: "https://neon.com/docs/guides/backup-restore",
       icon: docs,
     },
+    {
+      text: "View on GitHub",
+      href: "https://github.com/neondatabase-labs/snapshots-as-checkpoints-demo",
+      icon: docs,
+    },
   ],
 };
 
 export default async function Home() {
-  async function startDemo() {
-    "use server";
-    await Promise.all([resetCheckpoints(), resetContacts()]);
-    const firstCheckpoint = await createInitialCheckpoint();
-    redirect(`/${firstCheckpoint.id}`);
-  }
+  const user = await stackServerApp.getUser();
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 w-full bg-white/80 py-3 backdrop-blur-md dark:bg-black/50">
@@ -70,16 +64,34 @@ export default async function Home() {
             className="mt-3.5 max-w-lg text-base leading-snug tracking-tight text-[#61646B] md:text-lg md:leading-snug lg:text-xl lg:leading-snug dark:text-[#94979E]"
             dangerouslySetInnerHTML={{ __html: DATA.description }}
           />
-          <Prompt prompt={demo[0].prompt} label="first prompt" />
           <div className="mt-8 flex flex-wrap items-center gap-5 md:mt-9 lg:mt-10">
-            <form action={startDemo}>
-              <SubmitButton
-                pendingText="Starting..."
+            {user ? (
+              <form action={startDemoAction}>
+                <SubmitButton
+                  pendingText="Starting..."
+                  overlayTitle="Creating app"
+                  overlaySteps={[
+                    {
+                      label: "Cleaning up existing demo project for user",
+                      active: true,
+                    },
+                    { label: "Creating new Neon project" },
+                    { label: "Waiting for Neon main branch to be queryable" },
+                    { label: "Initializing project and first checkpoint" },
+                  ]}
+                  className="rounded-full bg-[#00E599] px-5 py-2.5 font-semibold tracking-tight text-[#0C0D0D] transition-colors duration-200 hover:bg-[#00E5BF] lg:px-7 lg:py-3"
+                >
+                  Create app
+                </SubmitButton>
+              </form>
+            ) : (
+              <Button
+                asChild
                 className="rounded-full bg-[#00E599] px-5 py-2.5 font-semibold tracking-tight text-[#0C0D0D] transition-colors duration-200 hover:bg-[#00E5BF] lg:px-7 lg:py-3"
               >
-                Start demo
-              </SubmitButton>
-            </form>
+                <Link href="/handler/sign-in">Sign in to start demo</Link>
+              </Button>
+            )}
           </div>
         </main>
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E4E5E7] py-5 sm:gap-2 sm:gap-6 md:pb-12 md:pt-10 dark:border-[#303236]">

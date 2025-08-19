@@ -4,17 +4,16 @@ import invariant from "tiny-invariant";
 import { waitForOperationsToSettle } from "./operations";
 
 export async function applySnapshot(
+  neonProjectId: string,
   snapshotId: string,
   targetBranchId: string,
 ): Promise<void> {
   console.log("Applying snapshot", snapshotId);
   const apiKey = process.env.NEON_API_KEY;
-  const projectId = process.env.NEON_PROJECT_ID || process.env.PROJECT_ID;
   invariant(apiKey, "NEON_API_KEY is required");
-  invariant(projectId, "NEON_PROJECT_ID or PROJECT_ID is required");
 
   const res = await fetch(
-    `https://console.neon.tech/api/v2/projects/${projectId}/snapshots/${snapshotId}/restore`,
+    `https://console.neon.tech/api/v2/projects/${neonProjectId}/snapshots/${snapshotId}/restore`,
     {
       method: "POST",
       headers: {
@@ -53,10 +52,14 @@ export async function applySnapshot(
 
   if (operationIds.length > 0) {
     console.log("Waiting for operations to settle", operationIds);
-    const results = await waitForOperationsToSettle(operationIds, {
-      onUpdate: ({ operationId, status }) =>
-        console.log(`Operation ${operationId} -> ${status}`),
-    });
+    const results = await waitForOperationsToSettle(
+      neonProjectId,
+      operationIds,
+      {
+        onUpdate: ({ operationId, status }) =>
+          console.log(`Operation ${operationId} -> ${status}`),
+      },
+    );
     console.log("Operations settled", results);
   } else {
     console.log("No operations returned from restore response");

@@ -44,7 +44,13 @@ export type ContactV3 = {
   tags: string[] | null;
 };
 
-export default function ContactListV3({ contacts }: { contacts: ContactV3[] }) {
+export default function ContactListV3({
+  contacts,
+  dbUrl,
+}: {
+  contacts: ContactV3[];
+  dbUrl: string;
+}) {
   const pathname = usePathname();
   const [addOpen, setAddOpen] = useState(false);
   const [editContact, setEditContact] = useState<ContactV3 | null>(null);
@@ -75,6 +81,7 @@ export default function ContactListV3({ contacts }: { contacts: ContactV3[] }) {
               }}
               className="space-y-3"
             >
+              <input type="hidden" name="dbUrl" value={dbUrl} />
               <input type="hidden" name="path" value={pathname} />
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
@@ -172,6 +179,7 @@ export default function ContactListV3({ contacts }: { contacts: ContactV3[] }) {
                         <form action={deleteContactAction}>
                           <input type="hidden" name="id" value={c.id} />
                           <input type="hidden" name="path" value={pathname} />
+                          <input type="hidden" name="dbUrl" value={dbUrl} />
                           <button
                             type="submit"
                             className="w-full text-left text-red-600"
@@ -207,6 +215,7 @@ export default function ContactListV3({ contacts }: { contacts: ContactV3[] }) {
             >
               <input type="hidden" name="id" value={editContact.id} />
               <input type="hidden" name="path" value={pathname} />
+              <input type="hidden" name="dbUrl" value={dbUrl} />
               <div className="grid gap-2">
                 <Label htmlFor="edit-name">Name</Label>
                 <Input

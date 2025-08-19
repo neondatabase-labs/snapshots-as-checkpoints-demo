@@ -7,7 +7,7 @@ export default function Loading() {
             Fetching page data…
           </h1>
           <p className="mt-2 max-w-lg text-base leading-snug tracking-tight text-[#61646B] md:text-lg md:leading-snug lg:text-xl lg:leading-snug dark:text-[#94979E]">
-            Loading contacts, meta checkpoints, and schema information.
+            Loading user session and initial content.
           </p>
           <div className="mt-6 h-1 w-full max-w-xs overflow-hidden rounded bg-[#E4E5E7] dark:bg-[#303236]">
             <div className="h-full w-1/3 animate-[loading_1.2s_infinite] bg-[#00E599]" />

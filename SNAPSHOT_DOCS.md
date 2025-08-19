@@ -159,7 +159,7 @@ Use this option if you want to restore the snapshot data immediately without ins
 #### Console
 
 1. Locate the snapshot you want to use and click **Restore → One-step restore**.
- 
+
 2. The **One-step restore** modal explains the operation:
    - The restore operation will occur instantly
    - The current branch will be restored to the snapshot state
@@ -195,10 +195,9 @@ Parameters:
 - `finalize_restore`: Set to `true` to finalize the restore immediately. Finalizing the restore moves computes from your current branch to the new branch with the restored snapshot data for a seamless restore operation — no need to change the connection details in your application.
   - `target_branch_id`: (Strongly recommended) The ID of the branch whose identity and computes should be preserved and switched over during finalize. Set this to the ID of your intended target (for example, your current `production` branch). If omitted, a subsequent restore may target a previously created backup branch (for example, `production (old)`) rather than your active production branch.
 
-  
-  > If you apply multiple snapshots sequentially without specifying `target_branch_id`, the next restore may attach to the backup branch created by the previous restore (for example, `production (old)`), not your current `production` branch. Always provide `target_branch_id` to ensure the restore targets the intended branch.  
+  > If you apply multiple snapshots sequentially without specifying `target_branch_id`, the next restore may attach to the backup branch created by the previous restore (for example, `production (old)`), not your current `production` branch. Always provide `target_branch_id` to ensure the restore targets the intended branch.
 
- > Need the `snapshot_id`? Use the [List project snapshots](https://api-docs.neon.tech/reference/listsnapshots) endpoint to find it quickly.  
+> Need the `snapshot_id`? Use the [List project snapshots](https://api-docs.neon.tech/reference/listsnapshots) endpoint to find it quickly.
 
 ### Multi-step restore
 
@@ -217,7 +216,7 @@ Use this option if you need to inspect the restored data before you switch over 
    - **Get connection details** for the new branch to preview the data restored from the snapshot
    - **Migrate connections and settings** to move your database URLs and compute settings from the old branch to the new branch so you don't have to update the connection configuration in your application
 
-#### API 
+#### API
 
 1.  **Restore the snapshot to a new branch**
 
@@ -239,14 +238,13 @@ Use this option if you need to inspect the restored data before you switch over 
     - `finalize_restore`: Set to `false` so that you can inspect the new branch before finalizing the restore operation.
     - `target_branch_id`: (Strongly recommended) The ID of the branch you ultimately intend to switch back into (typically your current `production` branch). Specifying this prevents accidental attachment to a backup branch when you later finalize.
 
-      
-         You can find the `snapshot_id` using the [List project snapshots](https://api-docs.neon.tech/reference/listsnapshots) endpoint.
+      You can find the `snapshot_id` using the [List project snapshots](https://api-docs.neon.tech/reference/listsnapshots) endpoint.
 
             ```bash
             curl -X GET "https://console.neon.tech/api/v2/projects/project_id/snapshots" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $NEON_API_KEY" |jq
-            ```      
+            ```
 
 2.  **Inspect the new branch**
 

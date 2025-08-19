@@ -16,14 +16,13 @@ export function isTerminalOperationStatus(status: OperationStatus): boolean {
 }
 
 async function fetchOperationStatus(
+  neonProjectId: string,
   operationId: string,
 ): Promise<OperationStatus> {
   const apiKey = process.env.NEON_API_KEY;
-  const projectId = process.env.NEON_PROJECT_ID || process.env.PROJECT_ID;
   invariant(apiKey, "NEON_API_KEY is required");
-  invariant(projectId, "NEON_PROJECT_ID or PROJECT_ID is required");
 
-  const url = `https://console.neon.tech/api/v2/projects/${projectId}/operations/${operationId}`;
+  const url = `https://console.neon.tech/api/v2/projects/${neonProjectId}/operations/${operationId}`;
   const res = await fetch(url, {
     method: "GET",
     headers: {
@@ -55,6 +54,7 @@ type WaitOptions = {
 };
 
 export async function waitForOperationToSettle(
+  neonProjectId: string,
   operationId: string,
   options: WaitOptions = {},
 ): Promise<OperationStatus> {
@@ -62,7 +62,7 @@ export async function waitForOperationToSettle(
   const timeoutMs = options.timeoutMs ?? 5 * 60 * 1000; // 5 minutes
   const startedAt = Date.now();
   while (true) {
-    const status = await fetchOperationStatus(operationId);
+    const status = await fetchOperationStatus(neonProjectId, operationId);
     options.onUpdate?.({ operationId, status });
     if (isTerminalOperationStatus(status)) return status;
     if (Date.now() - startedAt > timeoutMs) {
@@ -75,12 +75,17 @@ export async function waitForOperationToSettle(
 }
 
 export async function waitForOperationsToSettle(
+  neonProjectId: string,
   operationIds: string[],
   options: WaitOptions = {},
 ): Promise<Record<string, OperationStatus>> {
   const entries = await Promise.all(
     operationIds.map(async (opId) => {
-      const status = await waitForOperationToSettle(opId, options);
+      const status = await waitForOperationToSettle(
+        neonProjectId,
+        opId,
+        options,
+      );
       return [opId, status] as const;
     }),
   );

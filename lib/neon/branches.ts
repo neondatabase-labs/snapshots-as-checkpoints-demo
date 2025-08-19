@@ -90,13 +90,11 @@ function isBranch(value: unknown): value is Branch {
   return idOk && optionalStringsOk;
 }
 
-export async function getAllBranches(): Promise<Branch[]> {
+export async function getAllBranches(neonProjectId: string): Promise<Branch[]> {
   const apiKey = process.env.NEON_API_KEY;
-  const projectId = process.env.NEON_PROJECT_ID || process.env.PROJECT_ID;
   invariant(apiKey, "NEON_API_KEY is required");
-  invariant(projectId, "NEON_PROJECT_ID or PROJECT_ID is required");
 
-  const url = `https://console.neon.tech/api/v2/projects/${projectId}/branches`;
+  const url = `https://console.neon.tech/api/v2/projects/${neonProjectId}/branches`;
   const res = await fetch(url, {
     method: "GET",
     headers: {
@@ -113,13 +111,22 @@ export async function getAllBranches(): Promise<Branch[]> {
 
   const json: unknown = await res.json();
   const items: BranchContainer[] = extractBranchContainers(json);
-
-  return items.map(normalizeBranch).filter(isBranch);
+  const normalized = items.map(normalizeBranch).filter(isBranch);
+  return normalized;
 }
 
-export async function getProductionBranch(): Promise<Branch | undefined> {
-  const branches = await getAllBranches();
-  return branches.find((b) => b.name === "production");
+export async function getProductionBranch(
+  neonProjectId: string,
+): Promise<Branch | undefined> {
+  const branches = await getAllBranches(neonProjectId);
+  console.log(
+    "[neon] getProductionBranch: searching for 'main' (fallback 'production')",
+    { neonProjectId, available: branches.map((b) => b.name || b.id) },
+  );
+  return (
+    branches.find((b) => b.name === "main") ??
+    branches.find((b) => b.name === "production")
+  );
 }
 
 export { getProductionBranch as default };

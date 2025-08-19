@@ -5,7 +5,7 @@
 
   Required env vars:
   - NEON_API_KEY
-  - NEON_PROJECT_ID (or PROJECT_ID)
+  - NEON_PROJECT_ID (legacy; not used in app runtime)
 
   Usage:
     node scripts/delete-non-production-branches.js
@@ -28,8 +28,9 @@ async function main() {
     console.error("NEON_API_KEY is required");
     process.exit(1);
   }
+  // For this script, a project id is still required via env when used standalone
   if (!projectId) {
-    console.error("NEON_PROJECT_ID or PROJECT_ID is required");
+    console.error("NEON_PROJECT_ID or PROJECT_ID is required for this script");
     process.exit(1);
   }
 

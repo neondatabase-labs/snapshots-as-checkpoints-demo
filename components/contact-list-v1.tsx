@@ -38,7 +38,13 @@ import {
 
 export type ContactV1 = { id: string; name: string; email: string };
 
-export default function ContactListV1({ contacts }: { contacts: ContactV1[] }) {
+export default function ContactListV1({
+  contacts,
+  dbUrl,
+}: {
+  contacts: ContactV1[];
+  dbUrl: string;
+}) {
   const pathname = usePathname();
   const [addOpen, setAddOpen] = useState(false);
   const [editContact, setEditContact] = useState<ContactV1 | null>(null);
@@ -70,6 +76,7 @@ export default function ContactListV1({ contacts }: { contacts: ContactV1[] }) {
               }}
               className="space-y-3"
             >
+              <input type="hidden" name="dbUrl" value={dbUrl} />
               <input type="hidden" name="path" value={pathname} />
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
@@ -134,6 +141,7 @@ export default function ContactListV1({ contacts }: { contacts: ContactV1[] }) {
                         <form action={deleteContactAction}>
                           <input type="hidden" name="id" value={c.id} />
                           <input type="hidden" name="path" value={pathname} />
+                          <input type="hidden" name="dbUrl" value={dbUrl} />
                           <button
                             type="submit"
                             className="w-full text-left text-red-600"
@@ -169,6 +177,7 @@ export default function ContactListV1({ contacts }: { contacts: ContactV1[] }) {
             >
               <input type="hidden" name="id" value={editContact.id} />
               <input type="hidden" name="path" value={pathname} />
+              <input type="hidden" name="dbUrl" value={dbUrl} />
               <div className="grid gap-2">
                 <Label htmlFor="edit-name">Name</Label>
                 <Input

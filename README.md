@@ -8,10 +8,10 @@
 
 Snapshots as Checkpoints is a demo that showcases how to build a “checkpoint” abstraction for agent/codegen workflows using Neon’s snapshot and restore APIs. Each agent prompt produces a new checkpoint. You can jump back and forth between checkpoints to instantly revert schema and data.
 
-This demo uses two Postgres databases:
+This demo uses one persistent meta Postgres database and a dynamic app database per user session:
 
-- app database: the contacts app schema/data that evolves across prompts
-- meta database: a `checkpoints` table that records the timeline of checkpoints
+- meta database: stores auth user references (via Neon Auth), `projects`, and `checkpoints` (managed by Drizzle)
+- app database: created per user as a Neon project at demo start; its URL is saved in the `projects` table and used for all contacts reads/writes
 
 Key docs in this repo:
 
@@ -36,27 +36,27 @@ Reverting is restoring a snapshot:
 
 ### App flow
 
-- Home page → Start demo: resets both DBs and creates the first checkpoint from v1
+- Home page → Start demo: creates (or recreates) a Neon project for the signed-in user, stores it in the meta DB, applies the v1 mutation to that app DB, snapshots, and creates the first checkpoint
 - Checkpoint page `/[checkpointId]`:
   - Top: timeline of checkpoints with jump actions
   - Tabs: app | meta db | contacts schema
     - app: interactive contacts table (v1/v2/v3 components)
     - meta db: `checkpoints` table from the meta database
-    - contacts schema: columns reported by `information_schema.columns`
-  - Actions: revert (apply snapshot), update snapshot, create/jump to next
+    - contacts schema: columns reported by `information_schema.columns` (from the app database)
+  - Actions: revert (apply snapshot), create/jump to next
   - Next prompt: shows what the next mutation will do
 
 ### Data fetching
 
 Checkpoint page fetches data in parallel with Promise.all:
 
-- contacts for the current version
-- contacts table schema (information_schema)
-- meta `checkpoints` rows
+- contacts for the current version (using the app DB URL from the current project)
+- contacts table schema (from the app DB's `information_schema`)
+- meta `checkpoints` rows (from the meta DB)
 
 ### Applying a snapshot and waiting for operations
 
-- `lib/neon/apply-snapshot.ts` calls Neon’s restore endpoint with `finalize_restore: true` and a `target_branch_id` (your production branch), then collects operation IDs from the response
+- `lib/neon/apply-snapshot.ts` calls Neon’s restore endpoint with `finalize_restore: true` and a `target_branch_id` (production branch), then collects operation IDs from the response
 - `lib/neon/operations.ts` polls each operation using the operations API until it reaches a terminal status (`finished`, `skipped`, or `cancelled`)
 
 See [OPERATIONS_DOCS.md](OPERATIONS_DOCS.md) for operation semantics, and [SNAPSHOT_DOCS.md](SNAPSHOT_DOCS.md) for the restore flow.
@@ -66,25 +66,18 @@ See [OPERATIONS_DOCS.md](OPERATIONS_DOCS.md) for operation semantics, and [SNAPS
 Create a `.env` file in the project root with these variables:
 
 ```env
-# Contacts app database (the agent-managed app)
-DATABASE_URL=postgres://user:pass@host/db
+# Meta database (Drizzle-managed: users, projects, checkpoints)
+DATABASE_URL=postgres://user:pass@host/meta_db
 
-# Meta database (stores the checkpoints table)
-META_DATABASE_URL=postgres://user:pass@host/db
-
-# Neon API access for snapshot/restore and listing branches
-NEON_API_KEY=your_api_key
-
-# Neon project id (use NEON_PROJECT_ID or PROJECT_ID)
-NEON_PROJECT_ID=your_project_id
-# PROJECT_ID=your_project_id
+# Neon API access for creating/deleting projects, snapshots, restores
+# This should be an org-wide API key with permissions for your Neon org
+NEON_API_KEY=your_org_api_key
 ```
 
 Notes:
 
-- `DATABASE_URL` and `META_DATABASE_URL` must point to two different Neon databases/projects or two databases in the same project, depending on your setup.
-- `NEON_API_KEY` must have permission to call the [Neon API](https://neon.com/api_spec/release/v2.json) for your project.
-- The app uses the `production` branch as the root branch for snapshots/restores.
+- `DATABASE_URL` points to the meta database only. The app database URL is created dynamically per user and stored in the `projects` table.
+- The app uses the `production` branch of each user's Neon project as the root branch for snapshots/restores.
 
 ## Run locally
 
@@ -95,8 +88,8 @@ npm run dev
 
 Open http://localhost:3000 and click “Start demo”. The app will:
 
-- reset the contacts table and the meta checkpoints table
-- run the v1 mutation and create the initial snapshot
+- create (or recreate) a Neon project for the signed-in user and store it in the meta DB
+- run the v1 mutation against that app DB and create the initial snapshot
 - navigate to the first checkpoint route
 
 ## Files of interest
@@ -104,10 +97,10 @@ Open http://localhost:3000 and click “Start demo”. The app will:
 - app/[checkpointId]/page.tsx: main page, tabs, actions, and parallel fetching
 - lib/contacts.ts: schema mutations, CRUD, and contacts/schema queries
 - lib/checkpoints.ts: meta DB `checkpoints` table and list/create/update
-- lib/neon/branches.ts: resolves the `production` branch id via the Neon API
-- lib/neon/create-snapshot.ts: creates a snapshot on the production branch
-- lib/neon/apply-snapshot.ts: restore + wait for operations to finish
-- lib/neon/operations.ts: polls operation ids until terminal status
+- lib/neon/branches.ts: resolves the `production` branch id for a given Neon project
+- lib/neon/create-snapshot.ts: creates a snapshot on the production branch for a given Neon project
+- lib/neon/apply-snapshot.ts: restore + wait for operations to finish for a given Neon project
+- lib/neon/operations.ts: polls operation ids until terminal status for a given Neon project
 
 ## Production deployment
 

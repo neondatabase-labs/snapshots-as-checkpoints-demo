@@ -9,20 +9,19 @@ type CreateSnapshotOptions = {
 };
 
 export async function createSnapshot(
+  neonProjectId: string,
   options: CreateSnapshotOptions = {},
 ): Promise<string> {
   const apiKey = process.env.NEON_API_KEY;
-  const projectId = process.env.NEON_PROJECT_ID || process.env.PROJECT_ID;
   invariant(apiKey, "NEON_API_KEY is required");
-  invariant(projectId, "NEON_PROJECT_ID or PROJECT_ID is required");
-  const prodBranch = await getProductionBranch();
+  const prodBranch = await getProductionBranch(neonProjectId);
   invariant(prodBranch?.id, "Production branch not found");
   const branchId = prodBranch.id;
 
   const timestamp = options.timestamp ?? new Date().toISOString();
 
   const res = await fetch(
-    `https://console.neon.tech/api/v2/projects/${projectId}/branches/${branchId}/snapshot`,
+    `https://console.neon.tech/api/v2/projects/${neonProjectId}/branches/${branchId}/snapshot`,
     {
       method: "POST",
       headers: {

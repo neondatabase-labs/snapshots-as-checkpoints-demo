@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  Checkpoint,
   createNextCheckpoint,
   listCheckpoints,
-  updateCheckpointSnapshot,
+  getLatestProjectForUser,
 } from "@/lib/checkpoints";
 import CheckpointsTimeline from "@/components/checkpoints-timeline";
 import {
@@ -34,6 +33,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listCheckpoints as listMetaCheckpoints } from "@/lib/checkpoints";
+import { stackServerApp } from "@/lib/stack";
+import { PendingOverlay } from "@/components/pending-overlay";
+import { advanceToAction, advanceToNext } from "./actions";
 
 export default async function CheckpointPage({
   params,
@@ -41,7 +43,10 @@ export default async function CheckpointPage({
   params: Promise<{ checkpointId: string }>;
 }) {
   const { checkpointId } = await params;
-  const checkpoints = await listCheckpoints();
+  const user = await stackServerApp.getUser({ or: "redirect" });
+  const project = await getLatestProjectForUser(user.id);
+  if (!project) redirect("/");
+  const checkpoints = await listCheckpoints(project.id);
 
   let index = 0;
   for (let i = 0; i < checkpoints.length; i++) {
@@ -78,50 +83,18 @@ export default async function CheckpointPage({
   }
 
   const [contacts, [metaCheckpoints, contactsSchema]] = await Promise.all([
-    fetchContactsByVersion(demoStep.version),
-    Promise.all([listMetaCheckpoints(), fetchContactsSchema()]),
+    demoStep.version === "v0"
+      ? Promise.resolve([])
+      : fetchContactsByVersion(demoStep.version, project.databaseUrl),
+    Promise.all([
+      listMetaCheckpoints(project.id),
+      demoStep.version === "v0"
+        ? Promise.resolve([] as any)
+        : fetchContactsSchema(project.databaseUrl),
+    ]),
   ]);
   const prevCheckpoint = checkpoints[index - 1] ?? null;
   const nextStep = demo[index + 1] ?? null;
-
-  async function advanceToAction(formData: FormData) {
-    "use server";
-    const targetId = formData.get("targetId");
-    if (typeof targetId !== "string") return;
-    const [allCheckpoints, prodBranch] = await Promise.all([
-      listCheckpoints(),
-      getProductionBranch(),
-    ]);
-    if (!prodBranch) throw new Error("Production branch not found");
-    const target = allCheckpoints.find((c) => c.id === targetId);
-    if (!target) return;
-    await applySnapshot(target.snapshot_id, prodBranch.id);
-    redirect(`/${target.id}`);
-  }
-
-  async function advanceToNext() {
-    "use server";
-    if (!nextStep) {
-      throw new Error("No next step");
-    }
-    let nextCheckpoint: Checkpoint | null = null;
-    if (nextStep && !checkpoint.next_checkpoint_id) {
-      nextCheckpoint = await createNextCheckpoint(checkpoint.id, nextStep);
-    } else {
-      if (!checkpoints[index + 1]) throw new Error("No next checkpoint");
-      nextCheckpoint = checkpoints[index + 1];
-      const prodBranch = await getProductionBranch();
-      if (!prodBranch) throw new Error("Production branch not found");
-      await applySnapshot(nextCheckpoint.snapshot_id, prodBranch.id);
-    }
-    redirect(`/${nextCheckpoint.id}`);
-  }
-
-  async function updateSnapshotAction() {
-    "use server";
-    await updateCheckpointSnapshot(checkpoint.id, demoStep.version);
-    redirect(`/${checkpoint.id}`);
-  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -144,7 +117,9 @@ export default async function CheckpointPage({
       </header>
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 md:px-8 lg:px-0">
         <main className="flex flex-1 flex-col justify-center">
-          <Prompt prompt={demoStep.prompt} label="prompt" />
+          {demoStep.prompt && (
+            <Prompt prompt={demoStep.prompt} label="prompt" />
+          )}
 
           <div className="mt-12">
             <Tabs defaultValue="app">
@@ -155,14 +130,28 @@ export default async function CheckpointPage({
               </TabsList>
 
               <TabsContent value="app">
+                {demoStep.version === "v0" && (
+                  <div className="rounded-lg border border-[#E4E5E7] p-4 text-sm dark:border-[#303236]">
+                    Empty app
+                  </div>
+                )}
                 {demoStep.version === "v1" && (
-                  <ContactListV1 contacts={contacts as ContactV1[]} />
+                  <ContactListV1
+                    contacts={contacts as ContactV1[]}
+                    dbUrl={project.databaseUrl}
+                  />
                 )}
                 {demoStep.version === "v2" && (
-                  <ContactListV2 contacts={contacts as ContactV2[]} />
+                  <ContactListV2
+                    contacts={contacts as ContactV2[]}
+                    dbUrl={project.databaseUrl}
+                  />
                 )}
                 {demoStep.version === "v3" && (
-                  <ContactListV3 contacts={contacts as ContactV3[]} />
+                  <ContactListV3
+                    contacts={contacts as ContactV3[]}
+                    dbUrl={project.databaseUrl}
+                  />
                 )}
               </TabsContent>
 
@@ -211,7 +200,10 @@ export default async function CheckpointPage({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(contactsSchema as ContactsTableColumn[]).map((col) => (
+                      {(demoStep.version === "v0"
+                        ? []
+                        : (contactsSchema as ContactsTableColumn[])
+                      ).map((col) => (
                         <TableRow key={col.column_name}>
                           <TableCell className="font-medium">
                             {col.column_name}
@@ -232,8 +224,11 @@ export default async function CheckpointPage({
             </Tabs>
           </div>
 
-          <div className="mt-10">
-            <div className="flex items-center gap-4">
+          <div className="mt-16">
+            {nextStep && (
+              <Prompt prompt={nextStep.prompt} label="next prompt" />
+            )}
+            <div className="mt-4 flex items-center gap-4">
               {prevCheckpoint && (
                 <form action={advanceToAction}>
                   <input
@@ -243,52 +238,72 @@ export default async function CheckpointPage({
                   />
                   <SubmitButton
                     pendingText="Reverting..."
+                    overlayTitle="Applying checkpoint to main branch"
+                    overlaySteps={[
+                      {
+                        label: "Apply checkpoint to main branch",
+                        active: true,
+                      },
+                    ]}
                     variant="outline"
                     className="rounded-full bg-transparent px-5 py-2.5 font-semibold tracking-tight text-[#0C0D0D] transition-colors duration-200 lg:px-7 lg:py-3 border border-[#E4E5E7] hover:bg-[#E4E5E7]/50 dark:text-white dark:border-[#303236]"
                   >
-                    Revert
+                    Revert back
                   </SubmitButton>
                 </form>
               )}
 
-              <form action={updateSnapshotAction}>
-                <SubmitButton
-                  pendingText="Updating..."
-                  variant="outline"
-                  className="rounded-full bg-transparent px-5 py-2.5 font-semibold tracking-tight text-[#0C0D0D] transition-colors duration-200 lg:px-7 lg:py-3 border border-[#E4E5E7] hover:bg-[#E4E5E7]/50 dark:text-white dark:border-[#303236]"
-                >
-                  Update snapshot
-                </SubmitButton>
-              </form>
+              {nextStep && (
+                <form action={advanceToNext}>
+                  {checkpoint.next_checkpoint_id ? (
+                    <input
+                      type="hidden"
+                      name="targetId"
+                      value={checkpoint.next_checkpoint_id}
+                    />
+                  ) : (
+                    <>
+                      <input
+                        type="hidden"
+                        name="checkpointId"
+                        value={checkpoint.id}
+                      />
+                      <input
+                        type="hidden"
+                        name="nextStepId"
+                        value={nextStep.id}
+                      />
+                    </>
+                  )}
+                  <SubmitButton
+                    pendingText={
+                      checkpoint.next_checkpoint_id
+                        ? "Jumping..."
+                        : "Creating..."
+                    }
+                    overlayTitle={
+                      checkpoint.next_checkpoint_id
+                        ? undefined
+                        : "Creating next checkpoint"
+                    }
+                    overlaySteps={
+                      checkpoint.next_checkpoint_id
+                        ? undefined
+                        : [
+                            { label: "Create snapshot", active: true },
+                            { label: "Create checkpoint in DB" },
+                          ]
+                    }
+                    className="rounded-full bg-[#00E599] px-5 py-2.5 font-semibold tracking-tight text-[#0C0D0D] transition-colors duration-200 hover:bg-[#00E5BF] lg:px-7 lg:py-3"
+                  >
+                    {checkpoint.next_checkpoint_id
+                      ? "Next checkpoint"
+                      : "Create next checkpoint"}
+                  </SubmitButton>
+                </form>
+              )}
             </div>
           </div>
-
-          {nextStep && (
-            <div className="mt-16">
-              <Prompt prompt={nextStep.prompt} label="next prompt" />
-              <div className="mb-24 mt-4">
-                {checkpoint.next_checkpoint_id ? (
-                  <form action={advanceToNext}>
-                    <SubmitButton
-                      pendingText="Jumping..."
-                      className="rounded-full bg-[#00E599] px-5 py-2.5 font-semibold tracking-tight text-[#0C0D0D] transition-colors duration-200 hover:bg-[#00E5BF] lg:px-7 lg:py-3"
-                    >
-                      Jump to next checkpoint
-                    </SubmitButton>
-                  </form>
-                ) : (
-                  <form action={advanceToNext}>
-                    <SubmitButton
-                      pendingText="Creating..."
-                      className="rounded-full bg-[#00E599] px-5 py-2.5 font-semibold tracking-tight text-[#0C0D0D] transition-colors duration-200 hover:bg-[#00E5BF] lg:px-7 lg:py-3"
-                    >
-                      Create next checkpoint
-                    </SubmitButton>
-                  </form>
-                )}
-              </div>
-            </div>
-          )}
         </main>
       </div>
     </div>

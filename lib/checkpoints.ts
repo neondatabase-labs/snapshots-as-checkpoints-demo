@@ -1,7 +1,10 @@
 "use server";
 
-import { getMetaSql } from "@/lib/db";
+import { asc, desc, eq } from "drizzle-orm";
+import { getMetaDb } from "@/lib/db";
+import { checkpointsTable, projectsTable } from "@/lib/schema";
 import { createSnapshot } from "@/lib/neon/create-snapshot";
+import { createNeonProject, deleteNeonProject } from "@/lib/neon/projects";
 import demo from "./demo";
 
 export type ComponentVersion = "v1" | "v2" | "v3";
@@ -14,71 +17,131 @@ export type Checkpoint = {
   created_at: string;
 };
 
-export async function createInitialCheckpoint(): Promise<Checkpoint> {
-  const sql = getMetaSql();
-  await sql`CREATE TABLE IF NOT EXISTS checkpoints (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    prompt TEXT NOT NULL,
-    snapshot_id TEXT NOT NULL,
-    next_checkpoint_id UUID NULL REFERENCES checkpoints(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-  )`;
+export async function createInitialCheckpoint(
+  projectId: string,
+  databaseUrl: string,
+): Promise<Checkpoint> {
+  const db = getMetaDb();
   const step = demo[0];
   const { prompt, mutation } = step;
-  await mutation();
-  const snapshotId = await createSnapshot({ name: step.version });
-  const inserted = (await sql`
-    INSERT INTO checkpoints (prompt, snapshot_id)
-    VALUES (${prompt}, ${snapshotId})
-    RETURNING *
-  `) as unknown as Checkpoint[];
-  return inserted[0];
+  await mutation(databaseUrl);
+  const [project] = await db
+    .select()
+    .from(projectsTable)
+    .where(eq(projectsTable.id, projectId));
+  if (!project) throw new Error("Project not found");
+  const snapshotId = await createSnapshot(project.neonProjectId, {
+    name: step.version,
+  });
+  const [row] = await db
+    .insert(checkpointsTable)
+    .values({ prompt, snapshotId, projectId })
+    .returning();
+  return {
+    id: row.id,
+    prompt: row.prompt,
+    snapshot_id: row.snapshotId,
+    next_checkpoint_id: row.nextCheckpointId ?? null,
+    created_at: row.createdAt?.toISOString?.() ?? String(row.createdAt),
+  };
 }
 
 export async function createNextCheckpoint(
   currentCheckpointId: string,
-  step: (typeof demo)[number],
+  nextStepId: string,
 ): Promise<Checkpoint> {
-  const sql = getMetaSql();
-  await step.mutation();
-  const snapshotId = await createSnapshot({
+  const db = getMetaDb();
+  const step = demo.find((s) => s.id === nextStepId);
+  if (!step) throw new Error("Next step not found");
+  // Lookup project URL to apply the mutation in the correct app DB
+  const [current] = await db
+    .select()
+    .from(checkpointsTable)
+    .where(eq(checkpointsTable.id, currentCheckpointId));
+  if (!current) throw new Error("Current checkpoint not found");
+  const [project] = await db
+    .select()
+    .from(projectsTable)
+    .where(eq(projectsTable.id, current.projectId));
+  if (!project) throw new Error("Project not found for checkpoint");
+  await step.mutation(project.databaseUrl);
+  const snapshotId = await createSnapshot(project.neonProjectId, {
     name: step.version,
   });
-  const inserted = (await sql`
-    INSERT INTO checkpoints (prompt, snapshot_id)
-    VALUES (${step.prompt}, ${snapshotId})
-    RETURNING *
-  `) as unknown as Checkpoint[];
-  await sql`UPDATE checkpoints SET next_checkpoint_id = ${inserted[0].id} WHERE id = ${currentCheckpointId}`;
-  return inserted[0];
+  const [inserted] = await db
+    .insert(checkpointsTable)
+    .values({ prompt: step.prompt, snapshotId, projectId: current.projectId })
+    .returning();
+  await db
+    .update(checkpointsTable)
+    .set({ nextCheckpointId: inserted.id })
+    .where(eq(checkpointsTable.id, currentCheckpointId));
+  return {
+    id: inserted.id,
+    prompt: inserted.prompt,
+    snapshot_id: inserted.snapshotId,
+    next_checkpoint_id: inserted.nextCheckpointId ?? null,
+    created_at:
+      inserted.createdAt?.toISOString?.() ?? String(inserted.createdAt),
+  };
 }
 
-export async function listCheckpoints(): Promise<Checkpoint[]> {
-  const sql = getMetaSql();
-  const rows =
-    (await sql`SELECT * FROM checkpoints ORDER BY created_at ASC`) as unknown as Checkpoint[];
-  return rows;
+export async function listCheckpoints(
+  projectId: string,
+): Promise<Checkpoint[]> {
+  const db = getMetaDb();
+  const rows = await db
+    .select()
+    .from(checkpointsTable)
+    .where(eq(checkpointsTable.projectId, projectId))
+    .orderBy(asc(checkpointsTable.createdAt));
+  return rows.map((r) => ({
+    id: r.id,
+    prompt: r.prompt,
+    snapshot_id: r.snapshotId,
+    next_checkpoint_id: r.nextCheckpointId ?? null,
+    created_at: r.createdAt?.toISOString?.() ?? String(r.createdAt),
+  }));
 }
 
-export async function resetCheckpoints(): Promise<void> {
-  const metaSql = getMetaSql();
-  await metaSql`DROP TABLE IF EXISTS checkpoints`;
+export async function getLatestProjectForUser(ownerUserId: string) {
+  const db = getMetaDb();
+  const rows = await db
+    .select()
+    .from(projectsTable)
+    .where(eq(projectsTable.ownerUserId, ownerUserId))
+    .orderBy(desc(projectsTable.createdAt));
+  return rows[0] ?? null;
 }
 
-export async function updateCheckpointSnapshot(
-  checkpointId: string,
-  name?: string,
-): Promise<Checkpoint> {
-  const sql = getMetaSql();
-  const snapshotId = await createSnapshot({ name });
-  const updated = (await sql`
-    UPDATE checkpoints
-    SET snapshot_id = ${snapshotId}
-    WHERE id = ${checkpointId}
-    RETURNING *
-  `) as unknown as Checkpoint[];
-  if (!updated || updated.length === 0) {
-    throw new Error("Checkpoint not found");
+// Reset flow for a project:
+// - delete Neon project
+// - delete checkpoints for the project
+// - delete project row
+// - create new Neon project
+// - save new project row
+export async function resetProject(ownerUserId: string, projectName: string) {
+  const db = getMetaDb();
+  // Find existing project for this user (assume single active project per user)
+  const [existing] = await db
+    .select()
+    .from(projectsTable)
+    .where(eq(projectsTable.ownerUserId, ownerUserId))
+    .orderBy(desc(projectsTable.createdAt));
+
+  if (existing) {
+    // Delete Neon project
+    await deleteNeonProject(existing.neonProjectId);
+    // Drizzle cascades will remove checkpoints when project is deleted due to FK on cascade
+    await db.delete(projectsTable).where(eq(projectsTable.id, existing.id));
   }
-  return updated[0];
+
+  // Create new Neon project
+  const { neonProjectId, databaseUrl } = await createNeonProject(projectName);
+  // Save new project row
+  const [project] = await db
+    .insert(projectsTable)
+    .values({ neonProjectId, databaseUrl, ownerUserId })
+    .returning();
+  return project;
 }
